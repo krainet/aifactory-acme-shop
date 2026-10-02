@@ -41,7 +41,7 @@ services:
     # Apply the schema and seed data (idempotent), then serve.
     command: ["sh", "-c", "acme-seed && exec uvicorn acme_shop.main:app --host 0.0.0.0 --port 8080"]
     ports:
-      - "${ACME_WEB_PORT:-18080}:8080"
+      - "127.0.0.1:${ACME_WEB_PORT:-18080}:8080"
     depends_on:
       db: {condition: service_healthy}
       cache: {condition: service_healthy}

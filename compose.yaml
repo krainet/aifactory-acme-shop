@@ -1,0 +1,70 @@
+# Acme Shop local stack: web (FastAPI), db (PostgreSQL), cache (Redis), worker (RQ).
+# Only the web port is published on the host (ACME_WEB_PORT, default 18080); db and cache stay on
+# the internal network. Credentials below are local development values for a fictional shop.
+name: acme-shop
+
+x-app-env: &app-env
+  ACME_DATABASE_URL: postgresql://acme:acme@db:5432/acme_shop
+  ACME_REDIS_URL: redis://cache:6379/0
+  ACME_CACHE_TTL_SECONDS: "300"
+  ACME_QUEUE_NAME: orders
+
+services:
+  db:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_USER: acme
+      POSTGRES_PASSWORD: acme
+      POSTGRES_DB: acme_shop
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acme -d acme_shop"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  cache:
+    image: redis:7.4.11-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    image: acme-shop:local
+    environment: *app-env
+    # Apply the schema and seed data (idempotent), then serve.
+    command: ["sh", "-c", "acme-seed && exec uvicorn acme_shop.main:app --host 0.0.0.0 --port 8080"]
+    ports:
+      - "${ACME_WEB_PORT:-18080}:8080"
+    depends_on:
+      db: {condition: service_healthy}
+      cache: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "acme-healthcheck", "web"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  worker:
+    build: .
+    image: acme-shop:local
+    environment: *app-env
+    command: ["acme-worker"]
+    depends_on:
+      web: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "acme-healthcheck", "worker"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  db-data:

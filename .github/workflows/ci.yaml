@@ -1,0 +1,34 @@
+# Acme Shop CI (sample repository layout). This file is a FIXTURE: GitHub only runs workflows from
+# the .github/workflows directory at the root of a repository, so it never runs inside aifactory.
+# It shows what the customer's own pipeline looks like when acme-shop is its own repository.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  stack:
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait
+      - run: scripts/smoke.sh
+      - run: scripts/check_cache.sh
+      - if: always()
+        run: docker compose down -v

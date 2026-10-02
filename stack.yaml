@@ -1,0 +1,13 @@
+# How aifactory brings up and validates this stack (aifactory BLUEPRINT section 5).
+# Validation commands run from workdir against the published web port (ACME_WEB_PORT).
+kind: compose
+workdir: /workspace/acme-shop
+compose_file: compose.yaml
+lifecycle: {start: "up -d --build --wait", stop: "down -v", status: "ps --format json"}
+health:
+  required: [web:8080, db:5432, cache:6379, worker]
+  timeout_seconds: 240
+validate:
+  - {name: smoke, run: "scripts/smoke.sh", timeout_seconds: 120}
+  - {name: cache-hit, run: "scripts/check_cache.sh", timeout_seconds: 60}
+patches: []

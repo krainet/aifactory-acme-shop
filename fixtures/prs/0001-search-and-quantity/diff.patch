@@ -1,0 +1,197 @@
+diff --git a/README.md b/README.md
+index e7d4bfa..cf08079 100644
+--- a/README.md
++++ b/README.md
+@@ -28,6 +28,8 @@ validates it end to end.
+ |--------|----------------------------------------|-------|
+ | GET    | `/healthz`                             | 200 when PostgreSQL and Redis answer, else 503 |
+ | GET    | `/products`, `/products/{id}`          | cached |
++| GET    | `/products/search?q=`                  | name search (not cached) |
++| PUT    | `/cart/{cart_id}/items/{product_id}`   | body `{"quantity": 5}` replaces the line quantity |
+ | GET    | `/cart/{cart_id}`                      | cached; `cart_id` matches `[A-Za-z0-9-]{1,64}` |
+ | POST   | `/cart/{cart_id}/items`                | body `{"product_id": 1, "quantity": 2}` (1-99) |
+ | DELETE | `/cart/{cart_id}/items/{product_id}`   | 204, or 404 when the line is absent |
+diff --git a/src/acme_shop/api.py b/src/acme_shop/api.py
+index 1bff4e3..3fc64d1 100644
+--- a/src/acme_shop/api.py
++++ b/src/acme_shop/api.py
+@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
+ 
+ from acme_shop import __version__
+ from acme_shop.metrics import render_metrics
+-from acme_shop.models import CART_ID_PATTERN, AddItem
++from acme_shop.models import CART_ID_PATTERN, AddItem, SetQuantity
+ from acme_shop.service import EmptyCartError, Shop, UnknownProductError
+ 
+ router = APIRouter()
+@@ -49,6 +49,11 @@ def list_products(shop: ShopDep, response: Response) -> Any:
+     return _cached(response, shop.list_products())
+ 
+ 
++@router.get("/products/search")
++def search_products(q: str, shop: ShopDep) -> list[dict[str, Any]]:
++    return shop.search_products(q)
++
++
+ @router.get("/products/{product_id}")
+ def get_product(product_id: int, shop: ShopDep, response: Response) -> Any:
+     product = _cached(response, shop.get_product(product_id))
+@@ -72,6 +77,14 @@ def add_item(cart_id: CartPath, item: AddItem, shop: ShopDep) -> dict[str, Any]:
+     return cart
+ 
+ 
++@router.put("/cart/{cart_id}/items/{product_id}")
++def set_quantity(
++    cart_id: CartPath, product_id: int, item: SetQuantity, shop: ShopDep
++) -> dict[str, int]:
++    quantity = shop.set_quantity(cart_id, product_id, item.quantity)
++    return {"product_id": product_id, "quantity": quantity}
++
++
+ @router.delete("/cart/{cart_id}/items/{product_id}", status_code=204)
+ def remove_item(cart_id: CartPath, product_id: int, shop: ShopDep) -> Response:
+     if not shop.remove_item(cart_id, product_id):
+diff --git a/src/acme_shop/models.py b/src/acme_shop/models.py
+index 01eeeed..58d8778 100644
+--- a/src/acme_shop/models.py
++++ b/src/acme_shop/models.py
+@@ -58,6 +58,12 @@ class AddItem(BaseModel):
+     quantity: Quantity = 1
+ 
+ 
++class SetQuantity(BaseModel):
++    model_config = ConfigDict(extra="forbid")
++
++    quantity: Quantity
++
++
+ class Order(BaseModel):
+     model_config = ConfigDict(frozen=True)
+ 
+diff --git a/src/acme_shop/postgres.py b/src/acme_shop/postgres.py
+index 7f9f9b3..524c4ca 100644
+--- a/src/acme_shop/postgres.py
++++ b/src/acme_shop/postgres.py
+@@ -38,6 +38,14 @@ class PostgresStore:
+             row = cur.fetchone()
+         return Product.model_validate(row) if row else None
+ 
++    def search_products(self, term: str) -> list[Product]:
++        with self._cursor() as cur:
++            cur.execute(
++                "SELECT id, sku, name, description, price_cents FROM products"
++                " WHERE name ILIKE '%" + term + "%' ORDER BY id"
++            )
++            return [Product.model_validate(row) for row in cur.fetchall()]
++
+     def get_cart(self, cart_id: str) -> Cart:
+         with self._cursor() as cur:
+             cur.execute(
+@@ -58,6 +66,15 @@ class PostgresStore:
+                 (cart_id, product_id, quantity, MAX_QUANTITY),
+             )
+ 
++    def set_quantity(self, cart_id: str, product_id: int, quantity: int) -> int:
++        with self._cursor() as cur:
++            cur.execute(
++                "UPDATE cart_items SET quantity = %s WHERE cart_id = %s AND product_id = %s"
++                " RETURNING quantity",
++                (quantity, cart_id, product_id),
++            )
++            return int(cur.fetchone()["quantity"])
++
+     def remove_item(self, cart_id: str, product_id: int) -> bool:
+         with self._cursor() as cur:
+             cur.execute(
+diff --git a/src/acme_shop/service.py b/src/acme_shop/service.py
+index 3e967e6..b7ccade 100644
+--- a/src/acme_shop/service.py
++++ b/src/acme_shop/service.py
+@@ -50,6 +50,9 @@ class Shop:
+ 
+         return self.cache.get_or_load(product_key(product_id), load)
+ 
++    def search_products(self, term: str) -> list[dict[str, Any]]:
++        return [product.model_dump() for product in self.store.search_products(term)]
++
+     def get_cart(self, cart_id: str) -> tuple[dict[str, Any], CacheStatus]:
+         return self.cache.get_or_load(
+             cart_key(cart_id), lambda: self.store.get_cart(cart_id).to_public()
+@@ -61,6 +64,9 @@ class Shop:
+         self.store.add_item(cart_id, product_id, quantity)
+         self.cache.invalidate(cart_key(cart_id))
+ 
++    def set_quantity(self, cart_id: str, product_id: int, quantity: int) -> int:
++        return self.store.set_quantity(cart_id, product_id, quantity)
++
+     def remove_item(self, cart_id: str, product_id: int) -> bool:
+         removed = self.store.remove_item(cart_id, product_id)
+         self.cache.invalidate(cart_key(cart_id))
+diff --git a/src/acme_shop/store.py b/src/acme_shop/store.py
+index 8e32aa2..0f36bd6 100644
+--- a/src/acme_shop/store.py
++++ b/src/acme_shop/store.py
+@@ -14,10 +14,16 @@ class Store(Protocol):
+ 
+     def get_product(self, product_id: int) -> Product | None: ...
+ 
++    def search_products(self, term: str) -> list[Product]: ...
++
+     def get_cart(self, cart_id: str) -> Cart: ...
+ 
+     def add_item(self, cart_id: str, product_id: int, quantity: int) -> None: ...
+ 
++    def set_quantity(self, cart_id: str, product_id: int, quantity: int) -> int:
++        """Replace the quantity of an existing cart line and return it."""
++        ...
++
+     def remove_item(self, cart_id: str, product_id: int) -> bool:
+         """Return False when the cart had no such line."""
+         ...
+diff --git a/tests/fakes.py b/tests/fakes.py
+index 372b7d9..3336346 100644
+--- a/tests/fakes.py
++++ b/tests/fakes.py
+@@ -29,6 +29,9 @@ class InMemoryStore:
+         self.reads += 1
+         return self.products.get(product_id)
+ 
++    def search_products(self, term: str) -> list[Product]:
++        return [p for p in self.list_products() if term.lower() in p.name.lower()]
++
+     def get_cart(self, cart_id: str) -> Cart:
+         self.reads += 1
+         items = self.carts.get(cart_id, {})
+@@ -47,6 +50,10 @@ class InMemoryStore:
+         items = self.carts.setdefault(cart_id, {})
+         items[product_id] = min(items.get(product_id, 0) + quantity, MAX_QUANTITY)
+ 
++    def set_quantity(self, cart_id: str, product_id: int, quantity: int) -> int:
++        self.carts[cart_id][product_id] = quantity
++        return quantity
++
+     def remove_item(self, cart_id: str, product_id: int) -> bool:
+         return self.carts.get(cart_id, {}).pop(product_id, None) is not None
+ 
+diff --git a/tests/test_api_search_quantity.py b/tests/test_api_search_quantity.py
+new file mode 100644
+index 0000000..3b1aecc
+--- /dev/null
++++ b/tests/test_api_search_quantity.py
+@@ -0,0 +1,16 @@
++from __future__ import annotations
++
++from fastapi.testclient import TestClient
++
++
++def test_search_finds_products_by_name(client: TestClient) -> None:
++    response = client.get("/products/search", params={"q": "anv"})
++    assert response.status_code == 200
++    assert [product["sku"] for product in response.json()] == ["ACME-ANV-001"]
++
++
++def test_set_quantity_replaces_the_line_quantity(client: TestClient) -> None:
++    client.post("/cart/c1/items", json={"product_id": 1, "quantity": 1})
++    response = client.put("/cart/c1/items/1", json={"quantity": 5})
++    assert response.status_code == 200
++    assert response.json() == {"product_id": 1, "quantity": 5}

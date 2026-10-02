@@ -1,0 +1,49 @@
+# What a competent reviewer must report on this pull request. Consumers (review pipeline golden
+# tests, scenario suite) assert on these. Lines are 1-based line numbers in the HEAD version of
+# the file (the RIGHT side of the diff, where GitHub anchors inline review comments); `anchor` is
+# a substring of that line. `keywords`: a matching finding should mention at least one of them.
+schema_version: 1
+pr: pr.yaml
+findings:
+  - id: sql-injection-search
+    path: src/acme_shop/postgres.py
+    line: 45
+    anchor: "ILIKE '%\" + term + \"%'"
+    severity: critical
+    category: security
+    summary: >-
+      The search term from the query string is concatenated into the SQL text, so
+      `GET /products/search?q=...` is an SQL injection. Pass it as a bound parameter
+      (`ILIKE %s` with `f"%{term}%"`), as every other query in this module does.
+    keywords: [injection, parameter, concatenat, bind, placeholder]
+  - id: stale-cart-cache-on-set-quantity
+    path: src/acme_shop/service.py
+    line: 68
+    anchor: "return self.store.set_quantity(cart_id, product_id, quantity)"
+    severity: high
+    category: correctness
+    summary: >-
+      `Shop.set_quantity` writes to PostgreSQL but never invalidates `cart_key(cart_id)`, unlike
+      `add_item` and `remove_item`. A cached cart keeps showing the old quantity and total for up
+      to the cache TTL (300 s), and checkout charges a different amount than the customer saw.
+    keywords: [cache, invalidat, stale]
+  - id: unhandled-missing-cart-line
+    path: src/acme_shop/postgres.py
+    line: 76
+    anchor: "cur.fetchone()[\"quantity\"]"
+    severity: medium
+    category: error-handling
+    summary: >-
+      When the cart has no such line the UPDATE returns no row, `fetchone()` is None and the
+      subscript raises TypeError: the endpoint answers 500 instead of 404 (compare `remove_item`).
+    keywords: ["404", "None", "not found", "missing", "TypeError", "500"]
+# Points a reviewer should NOT raise as defects (false-positive checks).
+non_findings:
+  - id: search-route-order
+    path: src/acme_shop/api.py
+    summary: >-
+      `/products/search` is registered before `/products/{product_id}`, so it is not shadowed by
+      the integer route; flagging route order here is a false positive.
+acceptance:
+  must_find: [sql-injection-search, stale-cart-cache-on-set-quantity, unhandled-missing-cart-line]
+  max_unexpected_findings: 2

@@ -1,0 +1,48 @@
+# acme-shop: the fictional customer application used as aifactory's reference stack and test
+# fixture. It is a standalone project: it is NOT a member of the aifactory uv workspace (the root
+# workspace only globs packages/*, services/* and plugins/*). Lint rules come from the repository
+# root ruff configuration; there is deliberately no [tool.ruff] table here.
+
+[project]
+name = "acme-shop"
+version = "0.3.0"
+description = "Acme Shop: a small storefront (products, cart, orders) on PostgreSQL, Redis and RQ"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.32,<1",
+    "psycopg[binary]>=3.2,<4",
+    "redis>=5.2,<8",
+    "rq>=2.0,<3",
+]
+
+[project.scripts]
+acme-seed = "acme_shop.seed:main"
+acme-worker = "acme_shop.worker:main"
+acme-healthcheck = "acme_shop.healthcheck:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<10",
+    "httpx2>=2.13,<3",
+    "fakeredis>=2.26,<3",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv]
+default-groups = ["dev"]
+
+# Its own (empty) workspace root, so uv never attaches this project to an enclosing workspace.
+[tool.uv.workspace]
+members = []
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]

@@ -1,0 +1,32 @@
+# Pull request metadata. `diff.patch` is `git diff base..head` (paths relative to the acme-shop
+# repository root) and applies cleanly to the acme-shop tree in this directory's grandparent.
+number: 7
+title: "feat: product search and cart quantity update"
+body: |
+  Adds two small features requested by the storefront team:
+
+  - `GET /products/search?q=<term>` searches the catalog by product name.
+  - `PUT /cart/{cart_id}/items/{product_id}` sets the quantity of a cart line directly, so the
+    cart page no longer needs a remove + add round trip.
+
+  Tests added for both endpoints; all tests pass locally.
+author: acme-dev
+repository: acme/acme-shop
+base: {ref: main, sha: 03f3cfa79734aeedda49a03f7f6660ae71114cfc}
+head: {ref: feature/search-and-quantity, sha: 1ab85cbb2ee48096f33dfb6495f373c93926f5fe}
+draft: false
+labels: []
+diff: diff.patch
+event: event.json
+expected: expected.yaml
+changed_files:
+  - README.md
+  - src/acme_shop/api.py
+  - src/acme_shop/models.py
+  - src/acme_shop/postgres.py
+  - src/acme_shop/service.py
+  - src/acme_shop/store.py
+  - tests/fakes.py
+  - tests/test_api_search_quantity.py
+additions: 74
+deletions: 1

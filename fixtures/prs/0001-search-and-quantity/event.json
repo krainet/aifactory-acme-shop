@@ -1,0 +1,135 @@
+{
+  "action": "opened",
+  "number": 7,
+  "pull_request": {
+    "id": 9300007,
+    "node_id": "PR_kwDOAIwYIc4AjeAH",
+    "html_url": "https://github.com/acme/acme-shop/pull/7",
+    "diff_url": "https://github.com/acme/acme-shop/pull/7.diff",
+    "patch_url": "https://github.com/acme/acme-shop/pull/7.patch",
+    "number": 7,
+    "state": "open",
+    "locked": false,
+    "title": "feat: product search and cart quantity update",
+    "user": {
+      "login": "acme-dev",
+      "id": 9100002,
+      "node_id": "U_kgDOAIrYIg",
+      "type": "User"
+    },
+    "body": "Adds two small features requested by the storefront team:\n\n- `GET /products/search?q=<term>` searches the catalog by product name.\n- `PUT /cart/{cart_id}/items/{product_id}` sets the quantity of a cart line directly, so the\n  cart page no longer needs a remove + add round trip.\n\nTests added for both endpoints; all tests pass locally.\n",
+    "labels": [],
+    "milestone": null,
+    "created_at": "2026-10-01T09:30:00Z",
+    "updated_at": "2026-10-01T09:30:00Z",
+    "closed_at": null,
+    "merged_at": null,
+    "assignees": [],
+    "requested_reviewers": [],
+    "requested_teams": [],
+    "head": {
+      "label": "acme:feature/search-and-quantity",
+      "ref": "feature/search-and-quantity",
+      "sha": "1ab85cbb2ee48096f33dfb6495f373c93926f5fe",
+      "user": {
+        "login": "acme",
+        "id": 9100001,
+        "node_id": "O_kgDOAIrYIQ",
+        "type": "Organization",
+        "html_url": "https://github.com/acme"
+      },
+      "repo": {
+        "id": 9200001,
+        "node_id": "R_kgDOAIwYIQ",
+        "name": "acme-shop",
+        "full_name": "acme/acme-shop",
+        "private": true,
+        "owner": {
+          "login": "acme",
+          "id": 9100001,
+          "node_id": "O_kgDOAIrYIQ",
+          "type": "Organization",
+          "html_url": "https://github.com/acme"
+        },
+        "html_url": "https://github.com/acme/acme-shop",
+        "default_branch": "main",
+        "clone_url": "https://github.com/acme/acme-shop.git"
+      }
+    },
+    "base": {
+      "label": "acme:main",
+      "ref": "main",
+      "sha": "03f3cfa79734aeedda49a03f7f6660ae71114cfc",
+      "user": {
+        "login": "acme",
+        "id": 9100001,
+        "node_id": "O_kgDOAIrYIQ",
+        "type": "Organization",
+        "html_url": "https://github.com/acme"
+      },
+      "repo": {
+        "id": 9200001,
+        "node_id": "R_kgDOAIwYIQ",
+        "name": "acme-shop",
+        "full_name": "acme/acme-shop",
+        "private": true,
+        "owner": {
+          "login": "acme",
+          "id": 9100001,
+          "node_id": "O_kgDOAIrYIQ",
+          "type": "Organization",
+          "html_url": "https://github.com/acme"
+        },
+        "html_url": "https://github.com/acme/acme-shop",
+        "default_branch": "main",
+        "clone_url": "https://github.com/acme/acme-shop.git"
+      }
+    },
+    "author_association": "MEMBER",
+    "auto_merge": null,
+    "draft": false,
+    "merged": false,
+    "mergeable": null,
+    "mergeable_state": "unknown",
+    "merged_by": null,
+    "comments": 0,
+    "review_comments": 0,
+    "maintainer_can_modify": false,
+    "commits": 1,
+    "additions": 74,
+    "deletions": 1,
+    "changed_files": 8
+  },
+  "repository": {
+    "id": 9200001,
+    "node_id": "R_kgDOAIwYIQ",
+    "name": "acme-shop",
+    "full_name": "acme/acme-shop",
+    "private": true,
+    "owner": {
+      "login": "acme",
+      "id": 9100001,
+      "node_id": "O_kgDOAIrYIQ",
+      "type": "Organization",
+      "html_url": "https://github.com/acme"
+    },
+    "html_url": "https://github.com/acme/acme-shop",
+    "default_branch": "main",
+    "clone_url": "https://github.com/acme/acme-shop.git"
+  },
+  "organization": {
+    "login": "acme",
+    "id": 9100001,
+    "node_id": "O_kgDOAIrYIQ"
+  },
+  "sender": {
+    "login": "acme-dev",
+    "id": 9100002,
+    "node_id": "U_kgDOAIrYIg",
+    "type": "User"
+  },
+  "installation": {
+    "id": 9400001,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uOTQwMDAwMQ=="
+  }
+}

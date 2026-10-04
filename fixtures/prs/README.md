@@ -18,6 +18,31 @@ The HEAD version of a file is obtained by applying `diff.patch` to a copy of the
 |---------|-----------------|-------------------|
 | `0001-search-and-quantity` | adds product search and a cart quantity update | SQL injection (critical), stale cart cache (high), 500 on a missing cart line (medium) |
 
+## From a fixture to a real pull request
+
+The scenario target `github` replays a fixture as a real pull request against the published
+mirror (`<owner>/aifactory-acme-shop`, see `../../README.md`):
+
+1. **Base.** Clone the mirror; its `main` equals this directory at the publishing commit, which is
+   the tree `diff.patch` applies to.
+2. **Branch.** Create a per-run branch, `scn/<run-id>/<fixture>` (for example
+   `scn/20261004-0317/0001`), so concurrent runs never share a branch. The fixture's `head.ref` is
+   documentation, not the branch name used.
+3. **Patch.** `git apply fixtures/prs/<fixture>/diff.patch`, commit, push the branch.
+4. **Pull request.** `gh pr create --base main --head <branch>` with `title` and `body` from
+   `pr.yaml` (`--draft` when `draft: true`).
+5. **Labels and comments.** The review trigger under test is injected with
+   `gh pr edit --add-label aifactory:review` or `gh pr comment` (mentioning the App); the
+   `aifactory:review` label exists in the mirror because the publisher creates it. Labels listed in
+   `pr.yaml` are added the same way.
+6. **Assertion.** The scenario waits for a review by the App's bot user (`<app-slug>[bot]`) and
+   matches its findings against `expected.yaml`.
+7. **Teardown.** Close the pull request and delete the branch; the mirror's `main` is never written
+   by scenarios.
+
+Real pull requests have new numbers and SHAs, so `number`, `base.sha` and `head.sha` in `pr.yaml`
+and `event.json` only describe the frozen replay used by the offline (doubles) target.
+
 ## Reproducing `0001-search-and-quantity` against the running stack
 
 Apply `diff.patch` to a copy of the tree, `docker compose up -d --build --wait`, then:

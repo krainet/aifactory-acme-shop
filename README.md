@@ -58,6 +58,25 @@ The unit tests use an in-memory store and fakeredis; PostgreSQL paths are exerci
 `scripts/smoke.sh` against the running stack. `.github/workflows/ci.yaml` is this repository's
 own pipeline (a fixture inside aifactory; it only runs when acme-shop is its own repository).
 
+## Published template repository (a mirror)
+
+aifactory publishes this directory as its own public GitHub repository,
+`<owner>/aifactory-acme-shop` (the name comes from `AF_EXAMPLE_REPOSITORY`), marked as a
+**template**, so the review agent works on a real repository with real pull requests:
+
+- `scripts/publish_example_repo.sh` in aifactory splits the history of `examples/acme-shop`
+  (`git subtree split`), creates the repository when it is missing, force-pushes the split to its
+  `main`, marks it as a template and creates the `aifactory:review` label. The aifactory workflow
+  `publish-example.yaml` runs it on every push to aifactory's `main` that touches
+  `examples/acme-shop/**`.
+- The published repository is a **mirror**: its `main` is rebuilt and force-pushed on every
+  publish, so never develop in it. Change `examples/acme-shop` in aifactory and publish again.
+- The scenario target `github` (`scripts/scenario.py --target github` in aifactory) opens real
+  pull requests against the mirror from the fixtures in `fixtures/prs/` (one branch per fixture,
+  `diff.patch` applied, then `gh pr create`), lets the installed GitHub App review them, and closes
+  them and deletes their branches afterwards. See `fixtures/prs/README.md`.
+- "Use this template" gives anyone a copy (public or private) to point their own aifactory at.
+
 ## Fixtures for aifactory
 
 `fixtures/prs/` holds pull requests against this code base, each with the unified diff, the

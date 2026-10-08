@@ -82,3 +82,5 @@ aifactory publishes this directory as its own public GitHub repository,
 `fixtures/prs/` holds pull requests against this code base, each with the unified diff, the
 GitHub-shaped `pull_request` event, and `expected.yaml` listing what a competent reviewer must
 find. See `fixtures/prs/README.md`.
+
+Acme Shop is a fictional demo application and is not intended for production use.
